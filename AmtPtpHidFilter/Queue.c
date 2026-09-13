@@ -123,34 +123,68 @@ FilterEvtIoIntDeviceControl(
 			UCHAR intensity = 0x08;
 			UCHAR damping = 0x00;
 
-			// Base waveform duration and intensity based on Windows 11 Haptic Slider (0..4)
+			if (slider == 0) {
+				// Tactile signals are disabled in Windows Settings
+				status = STATUS_SUCCESS;
+				break;
+			}
+
+			// 10-level granular tactile signal scale:
 			switch (slider) {
-			case 1: // Light
-				waveform = 0x15;
-				intensity = 0x05;
+			case 1: // Ultra-soft delicate micro-tick (imperceptible acoustic, silky touch)
+				waveform = 0x10;
+				intensity = 0x01;
+				damping = 0x07;
+				break;
+			case 2: // Very soft
+				waveform = 0x12;
+				intensity = 0x02;
+				damping = 0x05;
+				break;
+			case 3: // Soft
+				waveform = 0x14;
+				intensity = 0x03;
 				damping = 0x04;
 				break;
-			case 2: // Medium
+			case 4: // Light
+				waveform = 0x16;
+				intensity = 0x04;
+				damping = 0x03;
+				break;
+			case 5: // Medium-light
 				waveform = 0x18;
-				intensity = 0x08;
+				intensity = 0x05;
 				damping = 0x02;
 				break;
-			case 3: // Strong
+			case 6: // Medium
+				waveform = 0x1A;
+				intensity = 0x07;
+				damping = 0x01;
+				break;
+			case 7: // Medium-firm
+				waveform = 0x1C;
+				intensity = 0x08;
+				damping = 0x00;
+				break;
+			case 8: // Firm
 				waveform = 0x1E;
 				intensity = 0x0A;
 				damping = 0x00;
 				break;
-			case 4: // Maximum
-				waveform = 0x24;
-				intensity = 0x0D;
+			case 9: // Strong
+				waveform = 0x22;
+				intensity = 0x0C;
 				damping = 0x00;
 				break;
-			case 0:
-			default:
-				// Fallback default: solid crisp feedback
-				waveform = 0x1A;
-				intensity = 0x08;
+			case 10: // Maximum punch
+				waveform = 0x26;
+				intensity = 0x0F;
 				damping = 0x00;
+				break;
+			default:
+				waveform = 0x18;
+				intensity = 0x05;
+				damping = 0x02;
 				break;
 			}
 
@@ -159,24 +193,23 @@ FilterEvtIoIntDeviceControl(
 			if (manualTrigger >= 3) {
 				switch (manualTrigger) {
 				case 3: // Hover: shorter, softer tick
-					if (waveform > 4) waveform -= 3;
-					if (intensity > 2) intensity -= 2;
-					damping = 0x04;
+					if (intensity > 1) intensity -= 1;
+					damping = 0x06;
 					break;
 				case 4: // Collide: crisp tap
-					damping = 0x00;
 					break;
-				case 5: // Align (Snap Assist window docking): punchy, crisp, tactile click!
-					waveform += 2;
-					intensity += 1;
-					damping = 0x00;
+				case 5: // Align (Snap Assist window docking)
+					if (slider >= 3) {
+						waveform += 2;
+						intensity += 1;
+						damping = 0x00;
+					}
 					break;
 				case 6: // Step: sharp tick
-					damping = 0x00;
 					break;
 				case 7: // Grow: deeper, longer pulse
-					waveform += 6;
-					intensity += 2;
+					waveform += 4;
+					intensity += 1;
 					damping = 0x01;
 					break;
 				default:
@@ -184,9 +217,9 @@ FilterEvtIoIntDeviceControl(
 				}
 
 				PDRIVER_CONTEXT drvCtx = PtpFilterDriverGetContext(WdfDeviceGetDriver(queueContext->Device));
-				if (drvCtx != NULL && drvCtx->HapticSignalBoost > 0) {
+				if (drvCtx != NULL && drvCtx->HapticSignalBoost > 0 && slider > 1) {
 					intensity += (UCHAR)(drvCtx->HapticSignalBoost * 2);
-					waveform += (UCHAR)(drvCtx->HapticSignalBoost * 3);
+					waveform += (UCHAR)(drvCtx->HapticSignalBoost * 2);
 				}
 
 				PtpFilterTriggerActuatorPulseSafe(queueContext->Device, waveform, intensity, damping);

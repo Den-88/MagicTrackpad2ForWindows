@@ -392,39 +392,58 @@ PtpFilterSetHidFeatures(
 		PDRIVER_CONTEXT drvCtx = PtpFilterDriverGetContext(WdfDeviceGetDriver(Device));
 
 		switch (intReport->Intensity) {
-		case 0: // Disabled / Off
+		case 0: // Disabled / Off (Haptics off, but mouse click always active)
 			clickFeedback = 0;
 			releaseFeedback = 0;
-			if (drvCtx != NULL) drvCtx->ButtonDisabled = TRUE;
 			break;
-		case 1: // Light (macOS Light click)
-			clickFeedback = 0x040415;
+		case 1: // Ultra-soft / Silent micro-click
+			clickFeedback = 0x000012;
+			releaseFeedback = 0x00000E;
+			break;
+		case 2: // Very light
+			clickFeedback = 0x020213;
 			releaseFeedback = 0x000010;
-			if (drvCtx != NULL) drvCtx->ButtonDisabled = FALSE;
 			break;
-		case 2: // Medium (macOS Medium click)
+		case 3: // Light
+			clickFeedback = 0x030314;
+			releaseFeedback = 0x000011;
+			break;
+		case 4: // macOS Light
+			clickFeedback = 0x040415;
+			releaseFeedback = 0x000012;
+			break;
+		case 5: // Light-medium
+			clickFeedback = 0x050516;
+			releaseFeedback = 0x000013;
+			break;
+		case 6: // macOS Medium
 			clickFeedback = 0x060617;
 			releaseFeedback = 0x000014;
-			if (drvCtx != NULL) drvCtx->ButtonDisabled = FALSE;
 			break;
-		case 3: // Firm / Strong (macOS Firm click)
+		case 7: // Medium-firm
+			clickFeedback = 0x07071A;
+			releaseFeedback = 0x010116;
+			break;
+		case 8: // macOS Firm / Strong
 			clickFeedback = 0x08081E;
 			releaseFeedback = 0x020218;
-			if (drvCtx != NULL) drvCtx->ButtonDisabled = FALSE;
 			break;
-		case 4: // Maximum (Loud & clicky punch)
+		case 9: // Very firm punch
+			clickFeedback = 0x0B0B22;
+			releaseFeedback = 0x04041B;
+			break;
+		case 10: // Maximum (Loud & clicky punch)
 			clickFeedback = 0xFFFFFF;
 			releaseFeedback = 0xFFFFFF;
-			if (drvCtx != NULL) drvCtx->ButtonDisabled = FALSE;
 			break;
 		default:
-			clickFeedback = 0x08081E;
-			releaseFeedback = 0x020218;
-			if (drvCtx != NULL) drvCtx->ButtonDisabled = FALSE;
+			clickFeedback = 0x060617;
+			releaseFeedback = 0x000014;
 			break;
 		}
 
 		if (drvCtx != NULL) {
+			drvCtx->ButtonDisabled = FALSE;
 			// Check if Silent Clicking was configured
 			if (drvCtx->FeedbackClick != 0 && (drvCtx->FeedbackClick & 0xFFFF00) == 0 && intReport->Intensity > 0) {
 				clickFeedback &= 0x0000FF;

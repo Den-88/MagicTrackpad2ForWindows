@@ -44,7 +44,7 @@ typedef struct _PTP_HAPTIC_TRIGGER_OUTPUT_REPORT {
 		USAGE_PAGE, 0x0e, /* Usage Page: Haptics */ \
 		USAGE, 0x23, /* Usage: Intensity */ \
 		LOGICAL_MINIMUM, 0x00, \
-		LOGICAL_MAXIMUM, 0x04, \
+		LOGICAL_MAXIMUM, 0x0a, \
 		REPORT_COUNT, 0x01, \
 		REPORT_SIZE, 0x08, \
 		FEATURE, 0x02, /* Feature (Data, Var, Abs) */ \
@@ -94,7 +94,7 @@ typedef struct _PTP_HAPTIC_TRIGGER_OUTPUT_REPORT {
 		USAGE_PAGE, 0x0e, /* Usage Page: Haptics */ \
 		USAGE, 0x23, /* Usage: Intensity */ \
 		LOGICAL_MINIMUM, 0x00, \
-		LOGICAL_MAXIMUM, 0x04, \
+		LOGICAL_MAXIMUM, 0x0a, \
 		REPORT_COUNT, 0x01, \
 		REPORT_SIZE, 0x08, \
 		OUTPUT, 0x02, /* Output (Data, Var, Abs) */ \

@@ -6,12 +6,125 @@
 #define PTP_MAX_CONTACT_POINTS 5
 #define PTP_BUTTON_TYPE_CLICK_PAD 0
 #define PTP_BUTTON_TYPE_PRESSURE_PAD 1
+#define PTP_BUTTON_TYPE_HAPTIC 2
 
 #define PTP_COLLECTION_MOUSE 0
 #define PTP_COLLECTION_WINDOWS 3
 
 #define PTP_CONTACT_CONFIDENCE_BIT   1
 #define PTP_CONTACT_TIPSWITCH_BIT    2
+
+#pragma pack(push, 1)
+typedef struct _PTP_HAPTIC_INTENSITY_FEATURE_REPORT {
+	UCHAR ReportID;
+	UCHAR Intensity;
+} PTP_HAPTIC_INTENSITY_FEATURE_REPORT, *PPTP_HAPTIC_INTENSITY_FEATURE_REPORT;
+
+typedef struct _PTP_HAPTIC_WAVEFORMS_FEATURE_REPORT {
+	UCHAR  ReportID;
+	USHORT Waveforms[5];
+	UCHAR  Durations[5];
+} PTP_HAPTIC_WAVEFORMS_FEATURE_REPORT, *PPTP_HAPTIC_WAVEFORMS_FEATURE_REPORT;
+
+typedef struct _PTP_HAPTIC_TRIGGER_OUTPUT_REPORT {
+	UCHAR  ReportID;
+	UCHAR  ManualTrigger;
+	UCHAR  Intensity;
+	UCHAR  RepeatCount;
+	USHORT RetriggerPeriod;
+	USHORT WaveformCutoffTime;
+} PTP_HAPTIC_TRIGGER_OUTPUT_REPORT, *PPTP_HAPTIC_TRIGGER_OUTPUT_REPORT;
+#pragma pack(pop)
+
+#define AAPL_PTP_HAPTICS_COLLECTIONS \
+	REPORT_ID, REPORTID_HAPTIC_INTENSITY, \
+	USAGE_PAGE, 0x0e, /* Usage Page: Haptics */ \
+	USAGE, 0x01, /* Usage: Simple Haptic Controller */ \
+	BEGIN_COLLECTION, 0x02, /* Logical Collection */ \
+		USAGE_PAGE, 0x0e, /* Usage Page: Haptics */ \
+		USAGE, 0x23, /* Usage: Intensity */ \
+		LOGICAL_MINIMUM, 0x00, \
+		LOGICAL_MAXIMUM, 0x04, \
+		REPORT_COUNT, 0x01, \
+		REPORT_SIZE, 0x08, \
+		FEATURE, 0x02, /* Feature (Data, Var, Abs) */ \
+	END_COLLECTION, \
+	REPORT_ID, REPORTID_HAPTIC_WAVEFORMS, \
+	USAGE_PAGE, 0x0e, /* Usage Page: Haptics */ \
+	USAGE, 0x01, /* Usage: Simple Haptic Controller */ \
+	BEGIN_COLLECTION, 0x02, /* Logical Collection */ \
+		USAGE_PAGE, 0x0e, /* Usage Page: Haptics */ \
+		USAGE, 0x10, /* Usage: Waveform List */ \
+		BEGIN_COLLECTION, 0x02, /* Logical Collection */ \
+			USAGE_PAGE, 0x0a, /* Usage Page: Ordinal */ \
+			USAGE_MINIMUM, 0x03, /* Instance 3 */ \
+			USAGE_MAXIMUM, 0x07, /* Instance 7 */ \
+			LOGICAL_MINIMUM_2, 0x01, 0x10, /* Logical Min: 0x1001 */ \
+			LOGICAL_MAXIMUM_2, 0xff, 0x2f, /* Logical Max: 0x2fff */ \
+			REPORT_COUNT, 0x05, /* 5 waveforms */ \
+			REPORT_SIZE, 0x10, /* 16-bit */ \
+			FEATURE, 0x02, \
+		END_COLLECTION, \
+		USAGE_PAGE, 0x0e, /* Usage Page: Haptics */ \
+		USAGE, 0x11, /* Usage: Duration List */ \
+		BEGIN_COLLECTION, 0x02, /* Logical Collection */ \
+			USAGE_PAGE, 0x0a, /* Usage Page: Ordinal */ \
+			USAGE_MINIMUM, 0x03, /* Instance 3 */ \
+			USAGE_MAXIMUM, 0x07, /* Instance 7 */ \
+			UNIT_2, 0x01, 0x10, /* Unit: ms */ \
+			UNIT_EXPONENT, 0x0d, /* Unit Exponent: 10^-3 */ \
+			LOGICAL_MINIMUM, 0x00, \
+			LOGICAL_MAXIMUM, 0x32, /* 50ms */ \
+			REPORT_COUNT, 0x05, /* 5 durations */ \
+			REPORT_SIZE, 0x08, /* 8-bit */ \
+			FEATURE, 0x02, \
+		END_COLLECTION, \
+	END_COLLECTION, \
+	REPORT_ID, REPORTID_HAPTIC_TRIGGER, \
+	USAGE_PAGE, 0x0e, /* Usage Page: Haptics */ \
+	USAGE, 0x01, /* Usage: Simple Haptic Controller */ \
+	BEGIN_COLLECTION, 0x02, /* Logical Collection */ \
+		USAGE_PAGE, 0x0e, /* Usage Page: Haptics */ \
+		USAGE, 0x21, /* Usage: Manual Trigger */ \
+		LOGICAL_MINIMUM, 0x01, \
+		LOGICAL_MAXIMUM, 0x07, \
+		REPORT_COUNT, 0x01, \
+		REPORT_SIZE, 0x08, \
+		OUTPUT, 0x02, /* Output (Data, Var, Abs) */ \
+		USAGE_PAGE, 0x0e, /* Usage Page: Haptics */ \
+		USAGE, 0x23, /* Usage: Intensity */ \
+		LOGICAL_MINIMUM, 0x00, \
+		LOGICAL_MAXIMUM, 0x04, \
+		REPORT_COUNT, 0x01, \
+		REPORT_SIZE, 0x08, \
+		OUTPUT, 0x02, /* Output (Data, Var, Abs) */ \
+		USAGE_PAGE, 0x0e, /* Usage Page: Haptics */ \
+		USAGE, 0x24, /* Usage: Repeat Count */ \
+		LOGICAL_MINIMUM, 0x00, \
+		LOGICAL_MAXIMUM, 0x05, \
+		REPORT_COUNT, 0x01, \
+		REPORT_SIZE, 0x08, \
+		OUTPUT, 0x02, /* Output (Data, Var, Abs) */ \
+		USAGE_PAGE, 0x0e, /* Usage Page: Haptics */ \
+		USAGE, 0x25, /* Usage: Retrigger Period */ \
+		UNIT_2, 0x01, 0x10, /* ms */ \
+		UNIT_EXPONENT, 0x0d, \
+		LOGICAL_MINIMUM, 0x00, \
+		LOGICAL_MAXIMUM_2, 0xe8, 0x03, /* 1000ms */ \
+		REPORT_COUNT, 0x01, \
+		REPORT_SIZE, 0x10, \
+		OUTPUT, 0x02, /* Output (Data, Var, Abs) */ \
+		USAGE_PAGE, 0x0e, /* Usage Page: Haptics */ \
+		USAGE, 0x28, /* Usage: Waveform Cutoff Time */ \
+		UNIT_2, 0x01, 0x10, /* ms */ \
+		UNIT_EXPONENT, 0x0d, \
+		LOGICAL_MINIMUM_2, 0xe8, 0x03, /* 1000ms */ \
+		LOGICAL_MAXIMUM_2, 0x88, 0x13, /* 5000ms */ \
+		REPORT_COUNT, 0x01, \
+		REPORT_SIZE, 0x10, \
+		OUTPUT, 0x02, /* Output (Data, Var, Abs) */ \
+	END_COLLECTION
+
 
 #define AAPL_PTP_USERMODE_CONFIGURATION_APP_TLC \
 	USAGE_PAGE_1, 0x00, 0xff, /* Usage Page: Vendor defined */ \

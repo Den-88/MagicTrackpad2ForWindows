@@ -65,6 +65,13 @@ typedef struct _DEVICE_CONTEXT
 	// for locking the pointer
 	PTP_REPORT_AUX  PrevPtpReportAux1, PrevPtpReportAux2;
 	UCHAR           PrevIsButtonClicked;
+
+	// Haptic feedback
+	WDFWORKITEM     HapticWorkItem;
+	UCHAR           PendingWaveform;
+	UCHAR           PendingIntensity;
+	UCHAR           PendingDamping;
+	UCHAR           HapticIntensity;
 	
 } DEVICE_CONTEXT, *PDEVICE_CONTEXT;
 
@@ -117,5 +124,39 @@ PtpFilterGetHidInputReport(
     _Out_ PUCHAR pReportBuffer,
     _In_ ULONG ReportBufferSize
 );
+
+NTSTATUS
+PtpFilterSendHidFeatureReport(
+    _In_ WDFDEVICE Device,
+    _In_ UCHAR ReportId,
+    _In_ PUCHAR pReportData,
+    _In_ ULONG ReportDataSize
+);
+
+NTSTATUS
+PtpFilterSendHidOutputReport(
+    _In_ WDFDEVICE Device,
+    _In_ UCHAR ReportId,
+    _In_ PUCHAR pReportData,
+    _In_ ULONG ReportDataSize
+);
+
+NTSTATUS
+PtpFilterTriggerActuatorPulse(
+    _In_ WDFDEVICE Device,
+    _In_ UCHAR Waveform,
+    _In_ UCHAR Intensity,
+    _In_ UCHAR Damping
+);
+
+VOID
+PtpFilterTriggerActuatorPulseSafe(
+    _In_ WDFDEVICE Device,
+    _In_ UCHAR Waveform,
+    _In_ UCHAR Intensity,
+    _In_ UCHAR Damping
+);
+
+EVT_WDF_WORKITEM PtpFilterHapticWorkItemCallback;
 
 EXTERN_C_END

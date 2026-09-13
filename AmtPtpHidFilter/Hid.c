@@ -222,12 +222,53 @@ PtpFilterGetHidFeatures(
 
 		PPTP_DEVICE_CAPS_FEATURE_REPORT capsReport = (PPTP_DEVICE_CAPS_FEATURE_REPORT)hidContent->reportBuffer;
 		capsReport->MaximumContactPoints = PTP_MAX_CONTACT_POINTS;
-		capsReport->ButtonType = PTP_BUTTON_TYPE_CLICK_PAD;
+		capsReport->ButtonType = PTP_BUTTON_TYPE_HAPTIC;
 		capsReport->ReportID = REPORTID_DEVICE_CAPS;
 
 		TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_HID, "%!FUNC! Report REPORTID_DEVICE_CAPS has maximum contact points of %d", capsReport->MaximumContactPoints);
 		TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_HID, "%!FUNC! Report REPORTID_DEVICE_CAPS has touchpad type %d", capsReport->ButtonType);
 		TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_HID, "%!FUNC! Report REPORTID_DEVICE_CAPS is fulfilled");
+		break;
+	}
+	case REPORTID_HAPTIC_INTENSITY:
+	{
+		TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_HID, "%!FUNC! Report REPORTID_HAPTIC_INTENSITY is requested");
+		reportSize = sizeof(PTP_HAPTIC_INTENSITY_FEATURE_REPORT);
+		if (hidContent->reportBufferLen < reportSize) {
+			status = STATUS_INVALID_BUFFER_SIZE;
+			TraceEvents(TRACE_LEVEL_ERROR, TRACE_HID, "%!FUNC! Report buffer is too small");
+			goto exit;
+		}
+
+		PPTP_HAPTIC_INTENSITY_FEATURE_REPORT intReport = (PPTP_HAPTIC_INTENSITY_FEATURE_REPORT)hidContent->reportBuffer;
+		intReport->ReportID = REPORTID_HAPTIC_INTENSITY;
+		intReport->Intensity = deviceContext->HapticIntensity;
+		TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_HID, "%!FUNC! REPORTID_HAPTIC_INTENSITY is fulfilled, intensity=%d", intReport->Intensity);
+		break;
+	}
+	case REPORTID_HAPTIC_WAVEFORMS:
+	{
+		TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_HID, "%!FUNC! Report REPORTID_HAPTIC_WAVEFORMS is requested");
+		reportSize = sizeof(PTP_HAPTIC_WAVEFORMS_FEATURE_REPORT);
+		if (hidContent->reportBufferLen < reportSize) {
+			status = STATUS_INVALID_BUFFER_SIZE;
+			TraceEvents(TRACE_LEVEL_ERROR, TRACE_HID, "%!FUNC! Report buffer is too small");
+			goto exit;
+		}
+
+		PPTP_HAPTIC_WAVEFORMS_FEATURE_REPORT wfReport = (PPTP_HAPTIC_WAVEFORMS_FEATURE_REPORT)hidContent->reportBuffer;
+		wfReport->ReportID = REPORTID_HAPTIC_WAVEFORMS;
+		wfReport->Waveforms[0] = 0x1008; // Ordinal 3: Hover
+		wfReport->Waveforms[1] = 0x1012; // Ordinal 4: Collide
+		wfReport->Waveforms[2] = 0x1013; // Ordinal 5: Align
+		wfReport->Waveforms[3] = 0x1014; // Ordinal 6: Step
+		wfReport->Waveforms[4] = 0x1015; // Ordinal 7: Grow
+		wfReport->Durations[0] = 15;
+		wfReport->Durations[1] = 20;
+		wfReport->Durations[2] = 25;
+		wfReport->Durations[3] = 20;
+		wfReport->Durations[4] = 30;
+		TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_HID, "%!FUNC! REPORTID_HAPTIC_WAVEFORMS is fulfilled");
 		break;
 	}
 	case REPORTID_PTPHQA:
@@ -331,6 +372,19 @@ PtpFilterSetHidFeatures(
 		TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_HID, "%!FUNC! Report REPORTID_FUNCSWITCH requested Button = %d, Surface = %d",
 			InputSelection->ButtonReport, InputSelection->SurfaceReport);
 		TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_HID, "%!FUNC! Report REPORTID_FUNCSWITCH is fulfilled");
+		break;
+	}
+	case REPORTID_HAPTIC_INTENSITY:
+	{
+		TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_HID, "%!FUNC! Report REPORTID_HAPTIC_INTENSITY is set");
+		if (hidPacket->reportBufferLen < sizeof(PTP_HAPTIC_INTENSITY_FEATURE_REPORT)) {
+			status = STATUS_INVALID_BUFFER_SIZE;
+			goto exit;
+		}
+
+		PPTP_HAPTIC_INTENSITY_FEATURE_REPORT intReport = (PPTP_HAPTIC_INTENSITY_FEATURE_REPORT)hidPacket->reportBuffer;
+		deviceContext->HapticIntensity = intReport->Intensity;
+		TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_HID, "%!FUNC! Haptic intensity updated to %d", intReport->Intensity);
 		break;
 	}
 	default:

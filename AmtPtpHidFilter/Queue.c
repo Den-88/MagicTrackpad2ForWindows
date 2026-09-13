@@ -99,6 +99,70 @@ FilterEvtIoIntDeviceControl(
 		break;
 	case IOCTL_HID_WRITE_REPORT:
 	case IOCTL_UMDF_HID_SET_OUTPUT_REPORT:
+	{
+		PHID_XFER_PACKET hidPacket = NULL;
+		PIRP irp = WdfRequestWdmGetIrp(Request);
+		if (irp != NULL) {
+			hidPacket = (PHID_XFER_PACKET)irp->UserBuffer;
+		}
+		if (hidPacket == NULL) {
+			size_t inLen = 0;
+			WdfRequestRetrieveInputBuffer(Request, sizeof(HID_XFER_PACKET), (PVOID*)&hidPacket, &inLen);
+		}
+
+		if (hidPacket != NULL && hidPacket->reportId == REPORTID_HAPTIC_TRIGGER && hidPacket->reportBuffer != NULL && hidPacket->reportBufferLen >= 2) {
+			UCHAR manualTrigger = hidPacket->reportBuffer[1];
+			UCHAR intensity = (hidPacket->reportBufferLen >= 3) ? hidPacket->reportBuffer[2] : 2;
+			UCHAR waveform = 0x01;
+			UCHAR damping = 0x00;
+
+			// Map Microsoft Haptic Waveform ordinals:
+			// Ordinals 1=None, 2=Stop
+			// Ordinal 3=Hover, 4=Collide, 5=Align (Snap), 6=Step, 7=Grow
+			if (manualTrigger >= 3) {
+				switch (manualTrigger) {
+				case 3: // Hover
+					waveform = 0x01;
+					damping = 0x02;
+					if (intensity == 0) intensity = 1;
+					break;
+				case 4: // Collide
+					waveform = 0x01;
+					damping = 0x01;
+					if (intensity == 0) intensity = 2;
+					break;
+				case 5: // Align (Snap Assist)
+					waveform = 0x01;
+					damping = 0x00;
+					if (intensity == 0) intensity = 3;
+					break;
+				case 6: // Step
+					waveform = 0x01;
+					damping = 0x00;
+					if (intensity == 0) intensity = 2;
+					break;
+				case 7: // Grow
+					waveform = 0x02;
+					damping = 0x01;
+					if (intensity == 0) intensity = 3;
+					break;
+				default:
+					waveform = 0x01;
+					damping = 0x00;
+					break;
+				}
+
+				PtpFilterTriggerActuatorPulseSafe(queueContext->Device, waveform, intensity, damping);
+			}
+			status = STATUS_SUCCESS;
+		} else {
+			status = STATUS_NOT_SUPPORTED;
+			TraceEvents(TRACE_LEVEL_WARNING, TRACE_QUEUE, "%!FUNC!: %s unhandled report %d",
+				PtpFilterDiagnosticsIoControlGetString(IoControlCode),
+				hidPacket ? hidPacket->reportId : -1);
+		}
+		break;
+	}
 	case IOCTL_UMDF_HID_GET_INPUT_REPORT:
 	case IOCTL_HID_ACTIVATE_DEVICE:
 	case IOCTL_HID_DEACTIVATE_DEVICE:

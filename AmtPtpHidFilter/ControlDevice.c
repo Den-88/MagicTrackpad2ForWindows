@@ -71,6 +71,27 @@ PtpFilterEvtIoDeviceControl(
 		}
 		break;
 
+	case IOCTL_PTPFILTER_TRIGGER_HAPTIC:
+		if (driverContext->CDFirstDevice == NULL) {
+			TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "%!FUNC! CDFirstDevice == NULL");
+			status = STATUS_INVALID_DEVICE_STATE;
+		} else {
+			PPTPFILTER_HAPTIC_PARAMS params = NULL;
+			if (InputBufferLength < sizeof(PTPFILTER_HAPTIC_PARAMS)) {
+				TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "%!FUNC! InputBufferLength < sizeof(PTPFILTER_HAPTIC_PARAMS)");
+				status = STATUS_BUFFER_TOO_SMALL;
+			} else {
+				status = WdfRequestRetrieveInputBuffer(Request, sizeof(PTPFILTER_HAPTIC_PARAMS), (PVOID*)&params, NULL);
+				if (!NT_SUCCESS(status) || params == NULL) {
+					TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "%!FUNC! WdfRequestRetrieveInputBuffer failed: %!STATUS!", status);
+				} else {
+					status = PtpFilterTriggerActuatorPulse(driverContext->CDFirstDevice, params->Waveform, params->Intensity, params->Damping);
+					bytesReturned = sizeof(PTPFILTER_HAPTIC_PARAMS);
+				}
+			}
+		}
+		break;
+
     default:
         TraceEvents(TRACE_LEVEL_WARNING, TRACE_DRIVER, 
             "Unsupported IOCTL: 0x%08lX", IoControlCode);
@@ -119,9 +140,10 @@ PtpFilterCreateControlDevice(
     
     DECLARE_CONST_UNICODE_STRING(controlDeviceName, L"\\Device\\AmtPtpControlDeviceUm");
     DECLARE_CONST_UNICODE_STRING(controlDeviceSymLink, L"\\DosDevices\\AmtPtpControlDeviceUm");
+    DECLARE_CONST_UNICODE_STRING(sddlEveryone, L"D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;WD)");
 
     deviceInit = WdfControlDeviceInitAllocate(Driver, 
-                                              &SDDL_DEVOBJ_SYS_ALL_ADM_ALL);
+                                              &sddlEveryone);
     if (deviceInit == NULL) {
         status = STATUS_INSUFFICIENT_RESOURCES;
         TraceEvents(TRACE_LEVEL_ERROR, TRACE_DRIVER, 

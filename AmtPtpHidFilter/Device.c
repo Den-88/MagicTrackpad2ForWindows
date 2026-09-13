@@ -111,6 +111,16 @@ PtpFilterCreateDevice(
         TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "HidTransportRecoveryWorkItem failed: %!STATUS!", status);
     }
 
+    // Initialize Haptic workitem
+    WDF_WORKITEM_CONFIG_INIT(&workitemConfig, PtpFilterHapticWorkItemCallback);
+    WDF_OBJECT_ATTRIBUTES_INIT(&deviceAttributes);
+    deviceAttributes.ParentObject = device;
+    status = WdfWorkItemCreate(&workitemConfig, &deviceAttributes, &deviceContext->HapticWorkItem);
+    if (!NT_SUCCESS(status)) {
+        TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "HapticWorkItem failed: %!STATUS!", status);
+    }
+    deviceContext->HapticIntensity = 3;
+
     // Set initial state
     deviceContext->VendorID = 0;
     deviceContext->ProductID = 0;
@@ -591,6 +601,178 @@ Exit:
 
     TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, "%!FUNC! Exit: %!STATUS!", status);
     return status;
+}
+
+NTSTATUS
+PtpFilterSendHidOutputReport(
+    _In_ WDFDEVICE Device,
+    _In_ UCHAR ReportId,
+    _In_ PUCHAR pReportData,
+    _In_ ULONG ReportDataSize
+    )
+{
+    NTSTATUS status = STATUS_SUCCESS;
+    PDEVICE_CONTEXT deviceContext = NULL;
+    WDFREQUEST request = NULL;
+    WDFMEMORY memory = NULL;
+    PHID_XFER_PACKET pHidPacket = NULL;
+    ULONG totalBufferSize = 0;
+    PUCHAR pAllocatedBuffer = NULL;
+    WDF_OBJECT_ATTRIBUTES attributes;
+
+    PAGED_CODE();
+    TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, "%!FUNC! Entry: ReportId=0x%02x, DataSize=%lu", ReportId, ReportDataSize);
+
+    if (Device == NULL || pReportData == NULL) {
+        TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "%!FUNC! Invalid parameter");
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    deviceContext = PtpFilterGetContext(Device);
+
+    totalBufferSize = 1 + ReportDataSize;
+
+    status = WdfRequestCreate(WDF_NO_OBJECT_ATTRIBUTES, deviceContext->HidIoTarget, &request);
+    if (!NT_SUCCESS(status)) {
+        TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "%!FUNC! WdfRequestCreate failed: %!STATUS!", status);
+        goto Exit;
+    }
+
+    WDF_OBJECT_ATTRIBUTES_INIT(&attributes);
+    attributes.ParentObject = request;
+    status = WdfMemoryCreate(&attributes,
+                             NonPagedPoolNx,
+                             0,
+                             sizeof(HID_XFER_PACKET) + totalBufferSize,
+                             &memory,
+                             (PVOID*)&pAllocatedBuffer);
+    if (!NT_SUCCESS(status)) {
+        TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "%!FUNC! WdfMemoryCreate failed: %!STATUS!", status);
+        goto Exit;
+    }
+
+    pHidPacket = (PHID_XFER_PACKET)pAllocatedBuffer;
+    PUCHAR pReportBuffer = pAllocatedBuffer + sizeof(HID_XFER_PACKET);
+
+    pReportBuffer[0] = ReportId;
+    if (ReportDataSize > 0) {
+        RtlCopyMemory(&pReportBuffer[1], pReportData, ReportDataSize);
+    }
+
+    RtlZeroMemory(pHidPacket, sizeof(HID_XFER_PACKET));
+    pHidPacket->reportId = ReportId;
+    pHidPacket->reportBuffer = pReportBuffer;
+    pHidPacket->reportBufferLen = totalBufferSize;
+
+    status = WdfIoTargetFormatRequestForInternalIoctl(
+        deviceContext->HidIoTarget,
+        request,
+        IOCTL_HID_SET_OUTPUT_REPORT,
+        memory,
+        NULL,
+        NULL, NULL);
+    if (!NT_SUCCESS(status)) {
+        TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "%!FUNC! WdfIoTargetFormatRequestForInternalIoctl failed: %!STATUS!", status);
+        goto Exit;
+    }
+
+    PIRP irp = WdfRequestWdmGetIrp(request);
+    if (irp == NULL) {
+        status = STATUS_UNSUCCESSFUL;
+        TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "%!FUNC! WdfRequestWdmGetIrp failed");
+        goto Exit;
+    }
+    irp->UserBuffer = pHidPacket;
+
+    WDF_REQUEST_SEND_OPTIONS sendOptions;
+    WDF_REQUEST_SEND_OPTIONS_INIT(&sendOptions, WDF_REQUEST_SEND_OPTION_SYNCHRONOUS);
+
+    if (!WdfRequestSend(request, deviceContext->HidIoTarget, &sendOptions)) {
+        status = WdfRequestGetStatus(request);
+        TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "%!FUNC! WdfRequestSend failed: %!STATUS!", status);
+        goto Exit;
+    }
+
+    TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, "%!FUNC! Output report sent successfully");
+
+Exit:
+    if (request != NULL) {
+        WdfObjectDelete(request);
+    }
+
+    TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, "%!FUNC! Exit: %!STATUS!", status);
+    return status;
+}
+
+NTSTATUS
+PtpFilterTriggerActuatorPulse(
+    _In_ WDFDEVICE Device,
+    _In_ UCHAR Waveform,
+    _In_ UCHAR Intensity,
+    _In_ UCHAR Damping
+)
+{
+    NTSTATUS status = STATUS_SUCCESS;
+    PDEVICE_CONTEXT deviceContext;
+
+    PAGED_CODE();
+    if (Device == NULL) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    deviceContext = PtpFilterGetContext(Device);
+
+    if (deviceContext->VendorID == HID_VID_APPLE_BT) {
+        BYTE btPulse[] = {
+            0x53, 0x01, Waveform, 0x78, 0x02, Intensity, 0x24, 0x30, 0x06, 0x01, Damping, 0x18, 0x48, 0x12
+        };
+        status = PtpFilterSendHidFeatureReport(Device, 0xF2, btPulse, sizeof(btPulse));
+        if (!NT_SUCCESS(status)) {
+            TraceEvents(TRACE_LEVEL_WARNING, TRACE_DEVICE, "%!FUNC! Feature report 0xF2 failed (%!STATUS!), trying output report", status);
+            status = PtpFilterSendHidOutputReport(Device, 0xF2, btPulse, sizeof(btPulse));
+        }
+    }
+    else if (deviceContext->VendorID == HID_VID_APPLE_USB) {
+        BYTE usbPulse[64] = { 0 };
+        BYTE basePulse[] = {
+            0x01, Waveform, 0x78, 0x02, Intensity, 0x24, 0x30, 0x06, 0x01, Damping, 0x18, 0x48, 0x12
+        };
+        RtlCopyMemory(usbPulse, basePulse, sizeof(basePulse));
+        status = PtpFilterSendHidOutputReport(Device, 0x53, usbPulse, sizeof(usbPulse));
+    }
+    else {
+        status = STATUS_NOT_SUPPORTED;
+    }
+
+    return status;
+}
+
+VOID
+PtpFilterHapticWorkItemCallback(
+    _In_ WDFWORKITEM WorkItem
+)
+{
+    WDFDEVICE device = WdfWorkItemGetParentObject(WorkItem);
+    PDEVICE_CONTEXT deviceContext = PtpFilterGetContext(device);
+    PtpFilterTriggerActuatorPulse(device, deviceContext->PendingWaveform, deviceContext->PendingIntensity, deviceContext->PendingDamping);
+}
+
+VOID
+PtpFilterTriggerActuatorPulseSafe(
+    _In_ WDFDEVICE Device,
+    _In_ UCHAR Waveform,
+    _In_ UCHAR Intensity,
+    _In_ UCHAR Damping
+)
+{
+    PDEVICE_CONTEXT deviceContext = PtpFilterGetContext(Device);
+    if (KeGetCurrentIrql() <= APC_LEVEL) {
+        PtpFilterTriggerActuatorPulse(Device, Waveform, Intensity, Damping);
+    } else {
+        deviceContext->PendingWaveform = Waveform;
+        deviceContext->PendingIntensity = Intensity;
+        deviceContext->PendingDamping = Damping;
+        WdfWorkItemEnqueue(deviceContext->HapticWorkItem);
+    }
 }
 
 NTSTATUS

@@ -214,7 +214,7 @@ PtpFilterInputParseMT2Report(
 		if (
 			DeviceContext->PrevPtpReportAux1.Id != UINT32_SET_MSB(f->Id) &&
 			DeviceContext->PrevPtpReportAux2.Id != UINT32_SET_MSB(f->Id) &&
-			(driverContext->IgnoreButtonFinger == FALSE ? TRUE : (!DeviceContext->PrevIsButtonClicked || !ptpOutputReport.IsButtonClicked)) &&
+			((driverContext->IgnoreButtonFinger == FALSE || raw_n <= 1) ? TRUE : (!DeviceContext->PrevIsButtonClicked || !ptpOutputReport.IsButtonClicked)) &&
 			(driverContext->StopPressure == 0xffffffff ? TRUE : f->Pressure > driverContext->StopPressure) &&
 			(driverContext->StopSize == 0xffffffff ? TRUE : f->Size > driverContext->StopSize)
 		)

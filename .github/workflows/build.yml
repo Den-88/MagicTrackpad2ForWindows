@@ -9,7 +9,7 @@ jobs:
     name: Build Driver Package and Control Panel
     permissions:
       contents: write
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
 
       - name: Checkout Code
@@ -35,6 +35,8 @@ jobs:
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
+        with:
+          vs-version: '[17.0,18.0)'
 
       - name: Restore NuGet Packages
         run: |
@@ -46,10 +48,10 @@ jobs:
         run: |
           sed -i 's|</TimeStampServer>|</TimeStampServer><ApiValidator_Enable>false</ApiValidator_Enable>|g' ./AmtPtpDeviceUsbUm/MagicTrackpad2PtpDevice.vcxproj
           sed -i 's|</TimeStampServer>|</TimeStampServer><ApiValidator_Enable>false</ApiValidator_Enable>|g' ./AmtPtpHidFilter/AmtPtpHidFilter.vcxproj
-          msbuild.exe ./AmtPtpDeviceUsbUm/MagicTrackpad2PtpDevice.vcxproj -p:Configuration=Release -p:Platform=x64
-          msbuild.exe ./AmtPtpHidFilter/AmtPtpHidFilter.vcxproj -p:Configuration=Release -p:Platform=x64
-          msbuild.exe ./AmtPtpDeviceUsbUm/MagicTrackpad2PtpDevice.vcxproj -p:Configuration=Release -p:Platform=ARM64
-          msbuild.exe ./AmtPtpHidFilter/AmtPtpHidFilter.vcxproj -p:Configuration=Release -p:Platform=ARM64
+          msbuild.exe ./AmtPtpDeviceUsbUm/MagicTrackpad2PtpDevice.vcxproj -p:Configuration=Release -p:Platform=x64 -p:VisualStudioVersion=17.0
+          msbuild.exe ./AmtPtpHidFilter/AmtPtpHidFilter.vcxproj -p:Configuration=Release -p:Platform=x64 -p:VisualStudioVersion=17.0
+          msbuild.exe ./AmtPtpDeviceUsbUm/MagicTrackpad2PtpDevice.vcxproj -p:Configuration=Release -p:Platform=ARM64 -p:VisualStudioVersion=17.0
+          msbuild.exe ./AmtPtpHidFilter/AmtPtpHidFilter.vcxproj -p:Configuration=Release -p:Platform=ARM64 -p:VisualStudioVersion=17.0
           msbuild.exe ./AmtPtpControlPanel/AmtPtpControlPanel.csproj -p:Configuration=Release -p:Platform=AnyCPU
           echo -e '.OPTION EXPLICIT\n.Set CabinetFileCountThreshold=0\n.Set FolderFileCountThreshold=0\n.Set FolderSizeThreshold=0\n.Set MaxCabinetSize=0\n.Set MaxDiskFileCount=0\n.Set MaxDiskSize=0\n.Set CompressionType=MSZIP\n.Set Cabinet=on\n.Set Compress=on\n.Set CabinetNameTemplate=drivers_x64.cab\n.Set DestinationDir=AMD64\nbuild\\AmtPtpDevice_AMD64.inf\tAmtPtpDevice.inf\nAmtPtpDeviceUsbUm\\build\\AmtPtpDeviceUsbUm\\x64\\Release\\AmtPtpDeviceUsbUm.dll\nAmtPtpHidFilter\\build\\AmtPtpHidFilter\\x64\\Release\\AmtPtpHidFilter.sys\nAmtPtpDeviceUsbUm\\build\\AmtPtpDeviceUsbUm\\x64\\Release\\AmtPtpDeviceUsbUm.pdb\nAmtPtpHidFilter\\build\\AmtPtpHidFilter\\x64\\Release\\AmtPtpHidFilter.pdb\n' > x64.ddf
           echo -e '.OPTION EXPLICIT\n.Set CabinetFileCountThreshold=0\n.Set FolderFileCountThreshold=0\n.Set FolderSizeThreshold=0\n.Set MaxCabinetSize=0\n.Set MaxDiskFileCount=0\n.Set MaxDiskSize=0\n.Set CompressionType=MSZIP\n.Set Cabinet=on\n.Set Compress=on\n.Set CabinetNameTemplate=drivers_arm64.cab\n.Set DestinationDir=ARM64\nbuild\\AmtPtpDevice_ARM64.inf\tAmtPtpDevice.inf\nAmtPtpDeviceUsbUm\\build\\AmtPtpDeviceUsbUm\\ARM64\\Release\\AmtPtpDeviceUsbUm.dll\nAmtPtpHidFilter\\build\\AmtPtpHidFilter\\ARM64\\Release\\AmtPtpHidFilter.sys\nAmtPtpDeviceUsbUm\\build\\AmtPtpDeviceUsbUm\\ARM64\\Release\\AmtPtpDeviceUsbUm.pdb\nAmtPtpHidFilter\\build\\AmtPtpHidFilter\\ARM64\\Release\\AmtPtpHidFilter.pdb\n' > arm64.ddf

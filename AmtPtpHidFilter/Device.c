@@ -667,7 +667,7 @@ PtpFilterSendHidOutputReport(
     status = WdfIoTargetFormatRequestForInternalIoctl(
         deviceContext->HidIoTarget,
         request,
-        IOCTL_HID_SET_OUTPUT_REPORT,
+        IOCTL_HID_WRITE_REPORT,
         memory,
         NULL,
         NULL, NULL);
@@ -683,6 +683,10 @@ PtpFilterSendHidOutputReport(
         goto Exit;
     }
     irp->UserBuffer = pHidPacket;
+    PIO_STACK_LOCATION nextSp = IoGetNextIrpStackLocation(irp);
+    if (nextSp != NULL) {
+        nextSp->Parameters.DeviceIoControl.Type3InputBuffer = pHidPacket;
+    }
 
     WDF_REQUEST_SEND_OPTIONS sendOptions;
     WDF_REQUEST_SEND_OPTIONS_INIT(&sendOptions, WDF_REQUEST_SEND_OPTION_SYNCHRONOUS);
@@ -721,22 +725,39 @@ PtpFilterTriggerActuatorPulse(
     }
     deviceContext = PtpFilterGetContext(Device);
 
+    BYTE usbPulse[64] = { 0 };
+    BYTE basePulse[] = {
+        0x01, Waveform, 0x78, 0x02, Intensity, 0x24, 0x30, 0x06, 0x01, Damping, 0x18, 0x48, 0x12
+    };
+    RtlCopyMemory(usbPulse, basePulse, sizeof(basePulse));
+
     if (deviceContext->VendorID == HID_VID_APPLE_BT) {
-        BYTE btPulse[] = {
-            0x53, 0x01, Waveform, 0x78, 0x02, Intensity, 0x24, 0x30, 0x06, 0x01, Damping, 0x18, 0x48, 0x12
-        };
-        status = PtpFilterSendHidFeatureReport(Device, 0xF2, btPulse, sizeof(btPulse));
+        // 1. Try standard Output Report 0x53 (exact same as USB, 64 bytes)
+        status = PtpFilterSendHidOutputReport(Device, 0x53, usbPulse, sizeof(usbPulse));
         if (!NT_SUCCESS(status)) {
-            TraceEvents(TRACE_LEVEL_WARNING, TRACE_DEVICE, "%!FUNC! Feature report 0xF2 failed (%!STATUS!), trying output report", status);
-            status = PtpFilterSendHidOutputReport(Device, 0xF2, btPulse, sizeof(btPulse));
+            // 2. Try 14-byte Output Report 0x53
+            status = PtpFilterSendHidOutputReport(Device, 0x53, basePulse, sizeof(basePulse));
+        }
+        if (!NT_SUCCESS(status)) {
+            // 3. Try Feature Report 0xF2 with Actuate command (0x24)
+            BYTE featPulse[] = {
+                0x24, 0x01, Waveform, 0x78, 0x02, Intensity, 0x24, 0x30, 0x06, 0x01, Damping, 0x18, 0x48, 0x12
+            };
+            status = PtpFilterSendHidFeatureReport(Device, 0xF2, featPulse, sizeof(featPulse));
+        }
+        if (!NT_SUCCESS(status)) {
+            // 4. Try Feature Report 0xF2 with 0x21
+            BYTE featPulse2[] = {
+                0x21, 0x01, Waveform, 0x78, 0x02, Intensity, 0x24, 0x30, 0x06, 0x01, Damping, 0x18, 0x48, 0x12
+            };
+            status = PtpFilterSendHidFeatureReport(Device, 0xF2, featPulse2, sizeof(featPulse2));
+        }
+        if (!NT_SUCCESS(status)) {
+            // 5. Try Feature Report 0x53 (64 bytes)
+            status = PtpFilterSendHidFeatureReport(Device, 0x53, usbPulse, sizeof(usbPulse));
         }
     }
     else if (deviceContext->VendorID == HID_VID_APPLE_USB) {
-        BYTE usbPulse[64] = { 0 };
-        BYTE basePulse[] = {
-            0x01, Waveform, 0x78, 0x02, Intensity, 0x24, 0x30, 0x06, 0x01, Damping, 0x18, 0x48, 0x12
-        };
-        RtlCopyMemory(usbPulse, basePulse, sizeof(basePulse));
         status = PtpFilterSendHidOutputReport(Device, 0x53, usbPulse, sizeof(usbPulse));
     }
     else {

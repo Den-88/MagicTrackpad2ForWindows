@@ -103,7 +103,13 @@ FilterEvtIoIntDeviceControl(
 		PHID_XFER_PACKET hidPacket = NULL;
 		PIRP irp = WdfRequestWdmGetIrp(Request);
 		if (irp != NULL) {
-			hidPacket = (PHID_XFER_PACKET)irp->UserBuffer;
+			PIO_STACK_LOCATION irpSp = IoGetCurrentIrpStackLocation(irp);
+			if (irpSp != NULL && irpSp->Parameters.DeviceIoControl.Type3InputBuffer != NULL) {
+				hidPacket = (PHID_XFER_PACKET)irpSp->Parameters.DeviceIoControl.Type3InputBuffer;
+			}
+			if (hidPacket == NULL) {
+				hidPacket = (PHID_XFER_PACKET)irp->UserBuffer;
+			}
 		}
 		if (hidPacket == NULL) {
 			size_t inLen = 0;

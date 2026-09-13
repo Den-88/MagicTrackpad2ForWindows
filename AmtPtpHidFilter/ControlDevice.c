@@ -92,6 +92,32 @@ PtpFilterEvtIoDeviceControl(
 		}
 		break;
 
+	case IOCTL_PTPFILTER_SEND_RAW_HID:
+		if (driverContext->CDFirstDevice == NULL) {
+			TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "%!FUNC! CDFirstDevice == NULL");
+			status = STATUS_INVALID_DEVICE_STATE;
+		} else {
+			PPTPFILTER_RAW_REPORT_PARAMS raw = NULL;
+			if (InputBufferLength < sizeof(PTPFILTER_RAW_REPORT_PARAMS)) {
+				TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "%!FUNC! InputBufferLength < sizeof(PTPFILTER_RAW_REPORT_PARAMS)");
+				status = STATUS_BUFFER_TOO_SMALL;
+			} else {
+				status = WdfRequestRetrieveInputBuffer(Request, sizeof(PTPFILTER_RAW_REPORT_PARAMS), (PVOID*)&raw, NULL);
+				if (!NT_SUCCESS(status) || raw == NULL) {
+					TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "%!FUNC! WdfRequestRetrieveInputBuffer failed: %!STATUS!", status);
+				} else {
+					ULONG len = raw->Length > 64 ? 64 : raw->Length;
+					if (raw->ReportType == 0) {
+						status = PtpFilterSendHidFeatureReport(driverContext->CDFirstDevice, raw->ReportId, raw->Data, len);
+					} else {
+						status = PtpFilterSendHidOutputReport(driverContext->CDFirstDevice, raw->ReportId, raw->Data, len);
+					}
+					bytesReturned = sizeof(PTPFILTER_RAW_REPORT_PARAMS);
+				}
+			}
+		}
+		break;
+
     default:
         TraceEvents(TRACE_LEVEL_WARNING, TRACE_DRIVER, 
             "Unsupported IOCTL: 0x%08lX", IoControlCode);

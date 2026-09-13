@@ -183,6 +183,12 @@ FilterEvtIoIntDeviceControl(
 					break;
 				}
 
+				PDRIVER_CONTEXT drvCtx = PtpFilterDriverGetContext(WdfDeviceGetDriver(queueContext->Device));
+				if (drvCtx != NULL && drvCtx->HapticSignalBoost > 0) {
+					intensity += (UCHAR)(drvCtx->HapticSignalBoost * 2);
+					waveform += (UCHAR)(drvCtx->HapticSignalBoost * 3);
+				}
+
 				PtpFilterTriggerActuatorPulseSafe(queueContext->Device, waveform, intensity, damping);
 			}
 			status = STATUS_SUCCESS;

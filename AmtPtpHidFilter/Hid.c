@@ -385,6 +385,56 @@ PtpFilterSetHidFeatures(
 		PPTP_HAPTIC_INTENSITY_FEATURE_REPORT intReport = (PPTP_HAPTIC_INTENSITY_FEATURE_REPORT)hidPacket->reportBuffer;
 		deviceContext->HapticIntensity = intReport->Intensity;
 		TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_HID, "%!FUNC! Haptic intensity updated to %d", intReport->Intensity);
+
+		// Map Windows 11 Click Intensity Slider (0..4) directly to Apple Trackpad Hardware Actuator:
+		ULONG clickFeedback = 0x060617;
+		ULONG releaseFeedback = 0x000014;
+		PDRIVER_CONTEXT drvCtx = PtpFilterDriverGetContext(WdfDeviceGetDriver(Device));
+
+		switch (intReport->Intensity) {
+		case 0: // Disabled / Off
+			clickFeedback = 0;
+			releaseFeedback = 0;
+			if (drvCtx != NULL) drvCtx->ButtonDisabled = TRUE;
+			break;
+		case 1: // Light (macOS Light click)
+			clickFeedback = 0x040415;
+			releaseFeedback = 0x000010;
+			if (drvCtx != NULL) drvCtx->ButtonDisabled = FALSE;
+			break;
+		case 2: // Medium (macOS Medium click)
+			clickFeedback = 0x060617;
+			releaseFeedback = 0x000014;
+			if (drvCtx != NULL) drvCtx->ButtonDisabled = FALSE;
+			break;
+		case 3: // Firm / Strong (macOS Firm click)
+			clickFeedback = 0x08081E;
+			releaseFeedback = 0x020218;
+			if (drvCtx != NULL) drvCtx->ButtonDisabled = FALSE;
+			break;
+		case 4: // Maximum (Loud & clicky punch)
+			clickFeedback = 0xFFFFFF;
+			releaseFeedback = 0xFFFFFF;
+			if (drvCtx != NULL) drvCtx->ButtonDisabled = FALSE;
+			break;
+		default:
+			clickFeedback = 0x08081E;
+			releaseFeedback = 0x020218;
+			if (drvCtx != NULL) drvCtx->ButtonDisabled = FALSE;
+			break;
+		}
+
+		if (drvCtx != NULL) {
+			// Check if Silent Clicking was configured
+			if (drvCtx->FeedbackClick != 0 && (drvCtx->FeedbackClick & 0xFFFF00) == 0 && intReport->Intensity > 0) {
+				clickFeedback &= 0x0000FF;
+				releaseFeedback &= 0x0000FF;
+			}
+			drvCtx->FeedbackClick = clickFeedback;
+			drvCtx->FeedbackRelease = releaseFeedback;
+		}
+
+		PtpFilterSetHapticFeedback(Device, clickFeedback, releaseFeedback);
 		break;
 	}
 	default:

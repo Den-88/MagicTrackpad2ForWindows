@@ -129,62 +129,38 @@ FilterEvtIoIntDeviceControl(
 				break;
 			}
 
-			// 10-level granular tactile signal scale:
+			// Map Windows 11 4-step slider (1..4) across full haptic span (Levels 1, 4, 7, 10):
 			switch (slider) {
-			case 1: // Ultra-soft delicate micro-tick (imperceptible acoustic, silky touch)
+			case 1: // Windows Step 1 -> Level 1: Ultra-soft delicate micro-tick (silky, imperceptible acoustic)
 				waveform = 0x10;
 				intensity = 0x01;
 				damping = 0x07;
 				break;
-			case 2: // Very soft
-				waveform = 0x12;
-				intensity = 0x02;
-				damping = 0x05;
-				break;
-			case 3: // Soft
-				waveform = 0x14;
-				intensity = 0x03;
-				damping = 0x04;
-				break;
-			case 4: // Light
+			case 2: // Windows Step 2 -> Level 4: Light-medium comfortable tick
 				waveform = 0x16;
 				intensity = 0x04;
 				damping = 0x03;
 				break;
-			case 5: // Medium-light
-				waveform = 0x18;
-				intensity = 0x05;
-				damping = 0x02;
-				break;
-			case 6: // Medium
-				waveform = 0x1A;
-				intensity = 0x07;
-				damping = 0x01;
-				break;
-			case 7: // Medium-firm
+			case 3: // Windows Step 3 -> Level 7: Medium-firm tactile click
 				waveform = 0x1C;
 				intensity = 0x08;
 				damping = 0x00;
 				break;
-			case 8: // Firm
-				waveform = 0x1E;
-				intensity = 0x0A;
-				damping = 0x00;
-				break;
-			case 9: // Strong
-				waveform = 0x22;
-				intensity = 0x0C;
-				damping = 0x00;
-				break;
-			case 10: // Maximum punch
+			case 4: // Windows Step 4 -> Level 10: Maximum punch (loud & clear)
 				waveform = 0x26;
 				intensity = 0x0F;
 				damping = 0x00;
 				break;
 			default:
-				waveform = 0x18;
-				intensity = 0x05;
-				damping = 0x02;
+				if (slider >= 4) {
+					waveform = 0x26;
+					intensity = 0x0F;
+					damping = 0x00;
+				} else {
+					waveform = 0x16;
+					intensity = 0x04;
+					damping = 0x03;
+				}
 				break;
 			}
 
@@ -199,7 +175,7 @@ FilterEvtIoIntDeviceControl(
 				case 4: // Collide: crisp tap
 					break;
 				case 5: // Align (Snap Assist window docking)
-					if (slider >= 3) {
+					if (slider >= 2) {
 						waveform += 2;
 						intensity += 1;
 						damping = 0x00;

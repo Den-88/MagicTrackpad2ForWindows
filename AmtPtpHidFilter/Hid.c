@@ -396,43 +396,19 @@ PtpFilterSetHidFeatures(
 			clickFeedback = 0;
 			releaseFeedback = 0;
 			break;
-		case 1: // Ultra-soft / Silent micro-click
+		case 1: // Step 1 -> Level 1: Ultra-soft / Silent micro-click
 			clickFeedback = 0x000012;
 			releaseFeedback = 0x00000E;
 			break;
-		case 2: // Very light
-			clickFeedback = 0x020213;
-			releaseFeedback = 0x000010;
-			break;
-		case 3: // Light
-			clickFeedback = 0x030314;
-			releaseFeedback = 0x000011;
-			break;
-		case 4: // macOS Light
+		case 2: // Step 2 -> Level 4: macOS Light
 			clickFeedback = 0x040415;
 			releaseFeedback = 0x000012;
 			break;
-		case 5: // Light-medium
-			clickFeedback = 0x050516;
-			releaseFeedback = 0x000013;
-			break;
-		case 6: // macOS Medium
-			clickFeedback = 0x060617;
-			releaseFeedback = 0x000014;
-			break;
-		case 7: // Medium-firm
-			clickFeedback = 0x07071A;
-			releaseFeedback = 0x010116;
-			break;
-		case 8: // macOS Firm / Strong
+		case 3: // Step 3 -> Level 7: macOS Firm / Strong
 			clickFeedback = 0x08081E;
 			releaseFeedback = 0x020218;
 			break;
-		case 9: // Very firm punch
-			clickFeedback = 0x0B0B22;
-			releaseFeedback = 0x04041B;
-			break;
-		case 10: // Maximum (Loud & clicky punch)
+		case 4: // Step 4 -> Level 10: Maximum Punch (Loud & clicky)
 			clickFeedback = 0xFFFFFF;
 			releaseFeedback = 0xFFFFFF;
 			break;

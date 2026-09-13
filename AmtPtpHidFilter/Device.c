@@ -732,28 +732,28 @@ PtpFilterTriggerActuatorPulse(
     RtlCopyMemory(usbPulse, basePulse, sizeof(basePulse));
 
     if (deviceContext->VendorID == HID_VID_APPLE_BT) {
-        // 1. Try standard Output Report 0x53 (exact same as USB, 64 bytes)
-        status = PtpFilterSendHidOutputReport(Device, 0x53, usbPulse, sizeof(usbPulse));
+        // 1. Primary Bluetooth pulse: Feature Report 0xF2 with 0x53 command (verified working hardware actuator packet)
+        BYTE btPulse[] = {
+            0x53, 0x01, Waveform, 0x78, 0x02, Intensity, 0x24, 0x30, 0x06, 0x01, Damping, 0x18, 0x48, 0x12
+        };
+        status = PtpFilterSendHidFeatureReport(Device, 0xF2, btPulse, sizeof(btPulse));
         if (!NT_SUCCESS(status)) {
-            // 2. Try 14-byte Output Report 0x53
+            // 2. Output Report 0x53 (exact same as USB, 64 bytes)
+            status = PtpFilterSendHidOutputReport(Device, 0x53, usbPulse, sizeof(usbPulse));
+        }
+        if (!NT_SUCCESS(status)) {
+            // 3. Output Report 0x53 (14 bytes)
             status = PtpFilterSendHidOutputReport(Device, 0x53, basePulse, sizeof(basePulse));
         }
         if (!NT_SUCCESS(status)) {
-            // 3. Try Feature Report 0xF2 with Actuate command (0x24)
+            // 4. Feature Report 0xF2 with Actuate command (0x24)
             BYTE featPulse[] = {
                 0x24, 0x01, Waveform, 0x78, 0x02, Intensity, 0x24, 0x30, 0x06, 0x01, Damping, 0x18, 0x48, 0x12
             };
             status = PtpFilterSendHidFeatureReport(Device, 0xF2, featPulse, sizeof(featPulse));
         }
         if (!NT_SUCCESS(status)) {
-            // 4. Try Feature Report 0xF2 with 0x21
-            BYTE featPulse2[] = {
-                0x21, 0x01, Waveform, 0x78, 0x02, Intensity, 0x24, 0x30, 0x06, 0x01, Damping, 0x18, 0x48, 0x12
-            };
-            status = PtpFilterSendHidFeatureReport(Device, 0xF2, featPulse2, sizeof(featPulse2));
-        }
-        if (!NT_SUCCESS(status)) {
-            // 5. Try Feature Report 0x53 (64 bytes)
+            // 5. Feature Report 0x53 (64 bytes)
             status = PtpFilterSendHidFeatureReport(Device, 0x53, usbPulse, sizeof(usbPulse));
         }
     }

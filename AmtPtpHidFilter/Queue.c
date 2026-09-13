@@ -118,43 +118,68 @@ FilterEvtIoIntDeviceControl(
 
 		if (hidPacket != NULL && hidPacket->reportId == REPORTID_HAPTIC_TRIGGER && hidPacket->reportBuffer != NULL && hidPacket->reportBufferLen >= 2) {
 			UCHAR manualTrigger = hidPacket->reportBuffer[1];
-			UCHAR intensity = (hidPacket->reportBufferLen >= 3) ? hidPacket->reportBuffer[2] : 2;
-			UCHAR waveform = 0x01;
+			UCHAR slider = (hidPacket->reportBufferLen >= 3) ? hidPacket->reportBuffer[2] : 2;
+			UCHAR waveform = 0x1A;
+			UCHAR intensity = 0x08;
 			UCHAR damping = 0x00;
 
-			// Map Microsoft Haptic Waveform ordinals:
-			// Ordinals 1=None, 2=Stop
+			// Base waveform duration and intensity based on Windows 11 Haptic Slider (0..4)
+			switch (slider) {
+			case 1: // Light
+				waveform = 0x15;
+				intensity = 0x05;
+				damping = 0x04;
+				break;
+			case 2: // Medium
+				waveform = 0x18;
+				intensity = 0x08;
+				damping = 0x02;
+				break;
+			case 3: // Strong
+				waveform = 0x1E;
+				intensity = 0x0A;
+				damping = 0x00;
+				break;
+			case 4: // Maximum
+				waveform = 0x24;
+				intensity = 0x0D;
+				damping = 0x00;
+				break;
+			case 0:
+			default:
+				// Fallback default: solid crisp feedback
+				waveform = 0x1A;
+				intensity = 0x08;
+				damping = 0x00;
+				break;
+			}
+
+			// Modulate by Microsoft Haptic Waveform ordinal:
 			// Ordinal 3=Hover, 4=Collide, 5=Align (Snap), 6=Step, 7=Grow
 			if (manualTrigger >= 3) {
 				switch (manualTrigger) {
-				case 3: // Hover
-					waveform = 0x01;
-					damping = 0x02;
-					if (intensity == 0) intensity = 1;
+				case 3: // Hover: shorter, softer tick
+					if (waveform > 4) waveform -= 3;
+					if (intensity > 2) intensity -= 2;
+					damping = 0x04;
 					break;
-				case 4: // Collide
-					waveform = 0x01;
-					damping = 0x01;
-					if (intensity == 0) intensity = 2;
-					break;
-				case 5: // Align (Snap Assist)
-					waveform = 0x01;
+				case 4: // Collide: crisp tap
 					damping = 0x00;
-					if (intensity == 0) intensity = 3;
 					break;
-				case 6: // Step
-					waveform = 0x01;
+				case 5: // Align (Snap Assist window docking): punchy, crisp, tactile click!
+					waveform += 2;
+					intensity += 1;
 					damping = 0x00;
-					if (intensity == 0) intensity = 2;
 					break;
-				case 7: // Grow
-					waveform = 0x02;
+				case 6: // Step: sharp tick
+					damping = 0x00;
+					break;
+				case 7: // Grow: deeper, longer pulse
+					waveform += 6;
+					intensity += 2;
 					damping = 0x01;
-					if (intensity == 0) intensity = 3;
 					break;
 				default:
-					waveform = 0x01;
-					damping = 0x00;
 					break;
 				}
 
